@@ -108,6 +108,14 @@ def get_data(racename="bos", size_train=50, size_test=50, train_lis=[2022], test
         xtest = xtest.sample(n=size_test, random_state=seed).sort_values("lvl")
 
     if save:
+        # break perfect equality for 5K rows so curr_pace != total_pace (avoids collinearity/identifiability)
+        ix_train = xtrain['dist'] == '5K'
+        if ix_train.any():
+            xtrain.loc[ix_train, 'curr_pace'] = xtrain.loc[ix_train, 'total_pace'] * (1 + 1e-8)
+        ix_test = xtest['dist'] == '5K'
+        if ix_test.any():
+            xtest.loc[ix_test, 'curr_pace'] = xtest.loc[ix_test, 'total_pace'] * (1 + 1e-8)
+
         xtrain.to_csv(f"processed_data/train_{racename}.csv")
         xtest.to_csv(f"processed_data/test_{racename}.csv")
     return xtrain, xtest

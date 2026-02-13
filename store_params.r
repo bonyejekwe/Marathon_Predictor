@@ -30,7 +30,15 @@ for (num in 1:3) {
                   ll = train_data$lvl,
                   finish = train_data$finish)
   
-    fit <- stan(file = 'marathon.stan', data = s_dat, cores=4, seed=2025)
+    # time the stan fit and record elapsed seconds
+    rt_file <- paste0("stan_results/model", num, "/runtimes.csv")
+    elapsed <- as.numeric(system.time(fit <- stan(file = 'marathon.stan', data = s_dat, cores=4, seed=2025))["elapsed"])
+    rt_row <- data.frame(race = race, model = num, elapsed = elapsed)
+    if (!file.exists(rt_file)) {
+      write.table(rt_row, file = rt_file, sep = ",", row.names = FALSE, col.names = TRUE)
+    } else {
+      write.table(rt_row, file = rt_file, sep = ",", row.names = FALSE, col.names = FALSE, append = TRUE)
+    }
     parameters <- as.data.frame(extract(fit)[c("beta", "sigma", "lp__")])
     write.csv(parameters,par_name, row.names = TRUE)
   }

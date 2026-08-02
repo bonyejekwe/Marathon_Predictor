@@ -212,16 +212,17 @@ def _preds(x, feats, params, full=True, curr_pace=False):
     
 def get_predictions(test_data, stan_path, feats_lis, full=False, curr_pace=False):
     stan_data = pd.read_csv(stan_path)
-    group = test_data.groupby(["lvl", "Race"], group_keys=True)
-    result = group.apply(lambda x: _preds(x, feats_lis, stan_data, full, curr_pace))
-    return np.concatenate(list(result))
+    result = []
+    for _, group in test_data.groupby(["lvl", "Race"], group_keys=True):
+        result.append(_preds(group, feats_lis, stan_data, full, curr_pace))
+    return np.concatenate(result)
 
 def other_stats(data, finish, rnd=3):
-    """Return overall MAE and R-squared values for specified columns in data"""
+    """Return overall MAE, RMSE and R-squared values for specified columns in data"""
     ftime = (42195/60) / finish
     tss = (((ftime) - (ftime).mean()) ** 2).sum()
-    tbl = data.apply(lambda x: (x.abs().mean(), 1 - ((x ** 2).sum()/ tss)))  # overall MAE, R^2
-    tbl = tbl.set_index([["Overall MAE", "Overall $R^2$"]])
+    tbl = data.apply(lambda x: (x.abs().mean(), np.sqrt((x ** 2).sum()/ tss), 1 - ((x ** 2).sum()/ tss)))  # overall MAE, RMSE, R^2
+    tbl = tbl.set_index([["Overall MAE", "Overall RMSE", "Overall $R^2$"]])
     return tbl.round(rnd)
 
 def get_table(test_data, model_preds, baseline_name="extrap"):
@@ -236,10 +237,16 @@ def get_table(test_data, model_preds, baseline_name="extrap"):
 
     return test_new
 
-def error_table(test_data, labels: list):
+def mae_table(test_data, labels: list):
     """table of MAE values from predictions"""
     mks = ["5K", "10K", "15K", "20K", "25K", "30K", "35K", "40K"]
     table_group = test_data.groupby(["dist"])[labels].apply(lambda x: x.abs().mean()).loc[mks]
+    return table_group
+
+def rmse_table(test_data, labels: list):
+    """table of RMSE values from predictions"""
+    mks = ["5K", "10K", "15K", "20K", "25K", "30K", "35K", "40K"]
+    table_group = test_data.groupby(["dist"])[labels].apply(lambda x: np.sqrt((x ** 2).sum() / len(x))).loc[mks]
     return table_group
 
 def group_data(test_data, group_feat, lbls:list, num_groups=4, pref="G", group_name="group", bins=None):

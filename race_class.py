@@ -26,6 +26,8 @@ class RaceSplits():
     def add_pace(self, dist: str, time: str, split=False):
         assert dist in marks
         num_time = str_to_int_time(time)
+        if num_time is None:
+            raise ValueError("Enter a valid time in MM:SS or HH:MM:SS format")
         if (split) and (dist != "5K"):
             assert self.last_dist[dist] in self.stored_times.keys(), "error here"
             last_time = self.stored_times[self.last_dist[dist]]
@@ -79,6 +81,7 @@ class RaceSplits():
         self.stored_paces = []
         self.prop = 0
         self.bttn_count = 0
+        self.city = "bos"
 
 
 def table_info(info: pd.DataFrame, show = ["5K", "10K"]):
@@ -97,10 +100,20 @@ def get_from_info(
     show: list = ["5K", "10K", "15K", "20K", "25K", "30K", "35K", "40K"]
 ):
     """Returns figure and table"""
+    plt.close("all")
     marks = ["5K", "10K", "15K", "20K", "25K", "30K", "35K", "40K"]
-    shows = [m for m in marks if m in list(race.get_stored_paces()["dist"])]
+    stored_paces = race.get_stored_paces()
+    shows = [m for m in marks if m in list(stored_paces["dist"])] if not stored_paces.empty else []
     shows = [m for m in shows if m in show]
     fig = plt.figure(figsize=(10, 6))
+
+    if not shows:
+        plt.title(f"{name} Live Prediction")
+        plt.xlabel("Time (HH:MM)")
+        plt.ylabel("Probability")
+        plt.savefig("analysis/plots/plot_live.jpg", dpi=300)
+        empty_table = pd.DataFrame(columns=["Split", "Input Time", "Median", "50% CI", "80% CI", "95% CI"])
+        return fig, empty_table
 
     p_array = race.posterior_array(shows)
     percentile_info = table_info(p_array, show=shows)

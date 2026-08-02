@@ -8,7 +8,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_rgba
 from matplotlib.lines import Line2D
-from utils import get_data, binning, int_to_str_time, error_table, group_data, other_stats, all_tests, get_test_preds, add_intervals_to_test, marathon_map
+from utils import get_data, binning, int_to_str_time, mae_table, rmse_table, group_data, other_stats, all_tests, get_test_preds, add_intervals_to_test, marathon_map
 random.seed(2025)
 
 def get_plot_race_dists(races=["bos", "nyc", "chi"]):
@@ -136,7 +136,7 @@ def plot_error(test_data: pd.DataFrame, models: list, baseline: str, save_name: 
     sns.reset_defaults()
     colors = [f"C{i}" for i in range(len(labels))]
     # sns.set_palette("viridis", n_colors=len(colors), desat=0.8)
-    table_group = error_table(test_data, labels).sort_index(axis=1)
+    table_group = mae_table(test_data, labels).sort_index(axis=1)
     if bar:
         table_group.plot(width=0.6, alpha=0.8, edgecolor="black", linewidth=0.3, ax=ax, legend=False, kind="bar") #, color=colors)
         suff = "_bar"
@@ -154,7 +154,7 @@ def plot_error(test_data: pd.DataFrame, models: list, baseline: str, save_name: 
     plt.legend(fontsize=15)
     plt.grid(True)
     if save_name != "":
-        filename = f"analysis/plots/{save_name}_error{suff}.jpg"
+        filename = f"analysis/plots/{save_name}_MAE_error{suff}.jpg"
         plt.savefig(filename, bbox_inches="tight", dpi=300)
         if pr == False:
             print(f"File saved: {filename}")
@@ -167,7 +167,55 @@ def plot_error(test_data: pd.DataFrame, models: list, baseline: str, save_name: 
         other_tbl = other_stats(test_data[[baseline] + models], test_data["finish"])
         table_group = pd.concat([table_group, other_tbl])
 
-    filename = f"analysis/tables/{save_name}_error.csv"
+    filename = f"analysis/tables/{save_name}_MAE_error.csv"
+    table_group.round(rnd).to_csv(filename)
+    if pr == False:
+        print(f"File saved: {filename}")
+    return table_group
+
+def plot_error2(test_data: pd.DataFrame, models: list, baseline: str, save_name: str = "bos", bar=True, rnd=3, other=True, pr=False):
+    """Create table and plot (line or bar) to compare the RMSE for multiple mdoels. Labels
+      specifies the models to be shown."""
+    fig, ax = plt.subplots()
+    fig.set_figheight(8)
+    fig.set_figwidth(11)
+
+    labels = models + [baseline]
+    sns.reset_defaults()
+    colors = [f"C{i}" for i in range(len(labels))]
+    # sns.set_palette("viridis", n_colors=len(colors), desat=0.8)
+    table_group = rmse_table(test_data, labels).sort_index(axis=1)
+    if bar:
+        table_group.plot(width=0.6, alpha=0.8, edgecolor="black", linewidth=0.3, ax=ax, legend=False, kind="bar") #, color=colors)
+        suff = "_bar"
+    else:
+        table_group.plot(label=table_group.columns, style='.-', linewidth=2, grid=True, alpha=0.8, color=colors, ax=ax)
+        suff = "_line"
+        
+    # fig.patch.set_facecolor(('yellow', 0.05)) # This changes the grey to white
+    #ax.set_facecolor(("orange", 0.05))
+    plt.xticks(fontsize=12, rotation=0)
+    plt.yticks(fontsize=12)
+    plt.xlabel("Distance Into Race (km)", fontsize=15)
+    plt.ylabel("Prediction Error (RMSE), in minutes", fontsize=15)
+    plt.title(f"Average Error For Each Model - {marathon_map.get(save_name, save_name)}", fontsize=18)
+    plt.legend(fontsize=15)
+    plt.grid(True)
+    if save_name != "":
+        filename = f"analysis/plots/{save_name}_RMSE_error{suff}.jpg"
+        plt.savefig(filename, bbox_inches="tight", dpi=300)
+        if pr == False:
+            print(f"File saved: {filename}")
+    plt.close()
+
+    for lbl in models:
+        table_group[f"pcnt_{lbl}"] = 1 - (table_group[lbl] / table_group[baseline])
+
+    if other:
+        other_tbl = other_stats(test_data[[baseline] + models], test_data["finish"])
+        table_group = pd.concat([table_group, other_tbl])
+
+    filename = f"analysis/tables/{save_name}_RMSE_error.csv"
     table_group.round(rnd).to_csv(filename)
     if pr == False:
         print(f"File saved: {filename}")
@@ -190,7 +238,7 @@ def plot_finish_groups(test_data, model: str, baseline: str, num=4, overall=True
     table_group.plot(style='.-', width=0.8, color=mixed_colors, edgecolor="black", linewidth=0.3, ax=ax, legend=False, kind="bar")
 
     if overall:
-        error = error_table(test_data, [baseline, model])
+        error = mae_table(test_data, [baseline, model])
         plt.plot(range(8), error[baseline], color="black", alpha=0.4, linestyle=':',  marker=".", label=f"TOTAL_{baseline}")
         plt.plot(range(8), error[model], color="black", alpha=0.4, linestyle='-',  marker=".", label=f"TOTAL_{model}")
     # fig.patch.set_facecolor(('yellow', 0.05)) # This changes the grey to white
@@ -202,7 +250,7 @@ def plot_finish_groups(test_data, model: str, baseline: str, num=4, overall=True
     plt.xlabel("Distance Into Race (km)", fontsize=18)
     plt.ylabel("Prediction Error (MAE), in minutes", fontsize=18)
     plt.title(f"Average Error By Finish Groups - {marathon_map.get(save_name, save_name)}", fontsize=22)
-    filename = f"analysis/plots/{save_name}_error_groups.jpg"
+    filename = f"analysis/plots/{save_name}_MAE_error_groups.jpg"
     plt.savefig(filename, bbox_inches="tight", dpi=300)
     if pr == False:
         print(f"File saved: {filename}")
@@ -232,7 +280,7 @@ def plot_finish_age_gender(test_data, model: str, baseline: str, num=4, overall=
             ax=ax[i], legend=False, kind="bar")
 
         if overall:
-            error = error_table(test_data2, [baseline, model])
+            error = mae_table(test_data2, [baseline, model])
             ax[i].plot(range(8), error[baseline], color="black", alpha=0.4, linestyle=':',  marker=".", label=f"TOTAL_{baseline}")
             ax[i].plot(range(8), error[model], color="black", alpha=0.4, linestyle='-',  marker=".", label=f"TOTAL_{model}")
 

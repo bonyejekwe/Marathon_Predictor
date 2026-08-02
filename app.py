@@ -1,5 +1,6 @@
 
 import faicons as fa
+import matplotlib.pyplot as plt
 from shiny import reactive
 from shiny.express import input, render, ui
 
@@ -19,7 +20,7 @@ ui.page_opts(title="Marathon Finish Time Predictor", fillable=True)
 with ui.sidebar(id="sidebar", open="open"):
     ui.input_radio_buttons("radio", "Input Type",  {"0": "Total Time"}, inline=True)  # , "1": "Last Split"
     ui.input_radio_buttons("radio2", "Marathon Race",  {"0": "Boston", "1": "New York", "2": "Chicago"}, inline=True)  
-    ui.input_select("select", label="Choose a distance", choices=marks, selected="5K")
+    ui.input_select("select", label="Next split to enter", choices=["5K"], selected="5K")
     ui.input_text("runner_split1", value="", label="Enter time here:", placeholder="MM:SS or HH:MM:SS")
     ui.input_action_button("bttn", "Update", class_="btn-success")
     ui.input_action_button("reset", "Reset", class_="btn-success")
@@ -30,29 +31,44 @@ with ui.sidebar(id="sidebar", open="open"):
         @reactive.event(input.bttn, input.reset)       
         def textSidebar():
             if input.bttn() > race_splits.bttn_count:
-                split = True if input.radio() == "1" else False
-                race_splits.add_pace(dist=input.select(), time=input.runner_split1(), split=split)
-                race_splits.bttn_count += 1
-                return f"Updated {input.select()}"
+                try:
+                    split = True if input.radio() == "1" else False
+                    race_splits.add_pace(dist=input.select(), time=input.runner_split1(), split=split)
+                    race_splits.bttn_count += 1
+
+                    next_dist = marks[len(race_splits.stored_times)] if len(race_splits.stored_times) < len(marks) else None
+                    if next_dist is not None:
+                        ui.update_select("select", choices=[next_dist], selected=next_dist)
+                    else:
+                        ui.update_select("select", choices=[], selected=None)
+
+                    ui.update_text("runner_split1", value="")
+                    return f"Updated {input.select()}"
+                except Exception as exc:
+                    return f"Error: {exc}"
             else:
                 race_splits.reset_race()
+                ui.update_select("select", choices=["5K"], selected="5K")
+                ui.update_text("runner_split1", value="")
                 return "Reset"
 
 with ui.nav_panel("My Plot"):
     with ui.layout_columns(fill=False):
         with ui.card(full_screen=True):
-            "View your finish time estimates in real time! Sequentially input your race splits in the sidebar text box, click update, and view your live prediction at that stage of the race. Input your times in 5km increments [5K, 10K, ..., 40K] using the total time.  NOTE: if the app errors, refresh the page and try again."
+            "View your finish time estimates in real time! Sequentially input your race splits in the sidebar text box, click update, and view your live prediction at that stage of the race. Input your times in 5km increments [5K, 10K, ..., 40K] using the total time."
+
+    def getInfoInput():
+        empty_fig = plt.figure(figsize=(10, 6))
+        empty_table = pd.DataFrame(columns=["Split", "Input Time", "Median", "50% CI", "80% CI", "95% CI"])
+
+        if not race_splits.stored_times:
+            return empty_fig, empty_table
+
+        race_splits.city = {"0": "bos", "1": "nyc", "2": "chi"}[input.radio2()]
+        fig, table = get_from_info(race_splits, show=marks)
+        return fig, table
 
     with ui.layout_columns(col_widths=[6, 6, 12]):
-
-        @reactive.calc
-        def getInfoInput():
-            if input.runner_split1():
-                race_splits.city = {"0": "bos", "1": "nyc", "2": "chi"}[input.radio2()]
-                fig, table = get_from_info(race_splits, show=marks)
-                return fig, table
-            else:
-                return None, None
                                      
         with ui.card(full_screen=True):
             ui.card_header("Live Prediction: Table", style=card_style)
@@ -65,7 +81,9 @@ with ui.nav_panel("My Plot"):
             @render.data_frame
             @reactive.event(input.bttn, input.reset)
             def tableInput():
-                info_table = getInfoInput()[1]
+                _, info_table = getInfoInput()
+                if info_table is None or info_table.empty:
+                    return pd.DataFrame(columns=["Split", "Input Time", "Median"] + list(input.intervals1()))
                 return info_table[["Split", "Input Time", "Median"] + list(input.intervals1())]
 
         with ui.card(full_screen=True):
@@ -74,7 +92,8 @@ with ui.nav_panel("My Plot"):
             @render.plot
             @reactive.event(input.bttn, input.reset)
             def histInput():
-                return getInfoInput()[0]
+                fig, _ = getInfoInput()
+                return fig
 
 
 with ui.nav_panel("NUCR Plots"):

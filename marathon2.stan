@@ -5,8 +5,7 @@ data {
   matrix[N, K] feats;
   vector[N] finish;
   vector[N] curr;
-  array[N] int<lower=1, upper=L> ll;
-
+  array[N] int<lower=1, upper=L> split_idx;
 }
 parameters {
   array[L] vector[K] beta;
@@ -14,30 +13,46 @@ parameters {
   array[L] real<lower=0> sigma;
 }
 model {
+  vector[N] mu;
   // priors
   for (l in 1:L) {
     beta[l] ~ normal(0, 1);
-    sigma[l] ~ cauchy(0, 1); 
+    sigma[l] ~ normal(0, 1); 
   }
-    for (l in 1:L-1) {
+  for (l in 1:L-1) {
     gamma[l] ~ normal(0, 1);
   }
   // model
-  for (n in 1:N) {
-    if (ll[n] == 1) {
-      finish[n] ~ normal(feats[n] * beta[ll[n]], sigma[ll[n]]);
+  int block_size = N %/% L;
+
+  for (s in 1:L) {
+    int a = (s - 1) * block_size + 1;
+    int b = s * block_size;
+
+    if (s == 1) {
+      mu[a:b] = feats[a:b] * beta[s];
     } else {
-      finish[n] ~ normal(feats[n] * beta[ll[n]] + curr[n] * gamma[ll[n]-1], sigma[ll[n]]);
+      mu[a:b] = feats[a:b] * beta[s] + curr[a:b] * gamma[s-1];
     }
   }
+  finish ~ normal(mu, sigma[split_idx]);
 }
+
 generated quantities {
   vector[N] log_lik;
-  for (n in 1:N) {
-    if (ll[n] == 1) {
-      log_lik[n] = normal_lpdf(finish[n] | feats[n] * beta[ll[n]], sigma[ll[n]]);
+  vector[N] mu_hat;
+  int block_size = N %/% L;
+  for (s in 1:L) {
+    int a = (s - 1) * block_size + 1;
+    int b = s * block_size;
+
+    if (s == 1) {
+      mu_hat[a:b] = feats[a:b] * beta[s];
     } else {
-      log_lik[n] = normal_lpdf(finish[n] | feats[n] * beta[ll[n]] + curr[n] * gamma[ll[n]-1], sigma[ll[n]]);
+      mu_hat[a:b] = feats[a:b] * beta[s] + curr[a:b] * gamma[s-1];
     }
+  }
+  for (n in 1:N) {
+    log_lik[n] = normal_lpdf(finish[n] | mu_hat[n], sigma[split_idx[n]]);
   }
 }

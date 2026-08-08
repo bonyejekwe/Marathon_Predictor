@@ -60,6 +60,8 @@ marathon_map = {
     "all": "All Marathons"
 }
 
+m_map = {"bos": 0, "nyc": 1, "chi": 2}
+
 def time_to_pace(time, dist):
     """Convert time to pace"""
     secs = time * 60
@@ -76,11 +78,14 @@ def process_df(data):
     output dataframe has columns=[dist, curr_pace, total_pace, finish, age, gender, year]"""
     new_idx, new_dist, new_mark, new_fin, new_last = [], [], [], [], []
     new_age, new_gender, new_year = [], [], []
+    new_log_fin, new_log_curr, new_log_total = [], [], []
     for dist in marks:
         new_idx.extend(list(data.index))
         new_dist.extend([dist] * len(data))
         new_mark.extend(conv1[dist] / data[dist])
         new_fin.extend(conv1["Finish Net"] / data["Finish Net"])
+        new_log_fin.extend(data["Finish Net"])
+        new_log_total.extend(data[dist])
         if dist == "5K":
             last = data["5K"]
         else:
@@ -89,6 +94,7 @@ def process_df(data):
         #     new_last.extend([0] * len(data))
         # else:
         #     new_last.extend(conv1["5K"] / last)
+        new_log_curr.extend(last)
         new_last.extend(conv1["5K"] / last)
         new_age.extend(data["Age"])
         new_gender.extend(data["M/F"])
@@ -96,13 +102,19 @@ def process_df(data):
 
     new_df = pd.DataFrame({
         "id": new_idx, "dist": new_dist, "curr_pace": new_last, "total_pace": new_mark, "finish": new_fin,
-        "age": new_age, "gender": new_gender, "year": new_year
+        "age": new_age, "gender": new_gender, "year": new_year,
+        "fin_time": new_log_fin, "curr_time": new_log_curr, "total_time": new_log_total
     })
     new_df["male"] = (new_df['gender'] == "M").astype(int)
     new_df["alpha"] = 1
     new_df["age_t"] = new_df["age"] / 100
     new_df["agegroup"] = np.digitize(new_df["age"], bins=[0, 30, 40, 50, 100])
     new_df['lvl'] = (new_df['dist'].str[:-1].astype(int) / 5).astype(int)
+    new_df["log_total_time"] = np.log(new_df["total_time"])
+    # new_df["log_curr_time"] = np.log(new_df["curr_time"])
+    new_df["log_finish"] = np.log(new_df["fin_time"])
+    # new_df["curr_ratio"] = np.log(new_df["log_curr"] / new_df["log_total"])
+    new_df["curr_ratio"] = np.log(new_df["curr_pace"] / new_df["total_pace"])
     return new_df
 
 def get_data(size_train=50, size_test=50, train_lis=[2022], test_lis=[2023], save=False, seed=2025):
@@ -113,16 +125,27 @@ def get_data(size_train=50, size_test=50, train_lis=[2022], test_lis=[2023], sav
     for race in ["bos", "nyc", "chi"]:
         d = pd.read_csv(f"processed_data/full_data_{race}.csv")
         train_years, test_years =  d[d["Year"].isin(train_lis)], d[d["Year"].isin(test_lis)]
+
+        if size_train != None:
+            train_years = train_years.sample(n=size_train, random_state=seed)
+        
+        if size_test != None:
+            test_years = test_years.sample(n=size_test, random_state=seed)
+
         xtrain = process_df(train_years)
         xtest = process_df(test_years)
         xtrain["race"], xtest["race"] = race, race
         xtrain["Race"], xtest["Race"] = race, race
+        xtrain["race_val"] = xtrain["race"].apply(lambda x: m_map[x]) + 1
+        xtrain["race_event"] = (xtrain["race_val"] - 1) * 3 + (xtrain["year"] - 2021)
+        xtest["race_val"] = xtest["race"].apply(lambda x: m_map[x]) + 1
+        xtest["race_event"] = (xtest["race_val"] - 1) * 3 + (xtest["year"] - 2021)
 
-        if size_train != None:
-            xtrain = xtrain.sample(n=size_train, random_state=seed).sort_values("lvl")
+        # if size_train != None:
+        #     xtrain = xtrain.sample(n=size_train, random_state=seed).sort_values("lvl")
         
-        if size_test != None:
-            xtest = xtest.sample(n=size_test, random_state=seed).sort_values("lvl")
+        # if size_test != None:
+        #     xtest = xtest.sample(n=size_test, random_state=seed).sort_values("lvl")
 
         train_data_list.append(xtrain)
         test_data_list.append(xtest)
@@ -132,6 +155,9 @@ def get_data(size_train=50, size_test=50, train_lis=[2022], test_lis=[2023], sav
 
     xtrain = pd.get_dummies(xtrain, columns=['race'], dtype=int)
     xtest = pd.get_dummies(xtest, columns=['race'], dtype=int)
+
+    xtrain = xtrain.sort_values(["lvl", "race_val"])
+    xtest = xtest.sort_values(["lvl", "race_val"])
     
     if save:
         train_path, test_path = "processed_data/train_all.csv", "processed_data/test_all.csv"
@@ -368,7 +394,7 @@ def get_test_preds(test_data, race: str, baseline = "BL", full=False):
         return test2
 
 if __name__ == '__main__':
-    size = 10000 # size1, size2 = 10000, 10000
+    size = 500 # size1, size2 = 10000, 10000
     train_yr, test_yr = [2021, 2022, 2023], [2024]
     train, test = get_data(size_train=size, size_test=size, train_lis=train_yr, test_lis=test_yr, save=True)
     print('done')

@@ -9,6 +9,8 @@ set.seed(2025)
 library("rstan") # observe startup messages
 library("loo")
 
+# features1 <- c("alpha", "log_total_time", "race_nyc", "race_chi")
+# features2 <- c("alpha", "log_total_time", "male", "age_t", "race_nyc", "race_chi")
 features1 <- c("alpha", "total_pace", "race_nyc", "race_chi")
 features2 <- c("alpha", "total_pace", "male", "age_t", "race_nyc", "race_chi")
 features3 <- c("alpha", "total_pace", "race_nyc", "race_chi") # w/ curr_pace
@@ -20,7 +22,7 @@ for (race in c("all")) {
     train_data <- read.csv(train_name)
     
     data1 <- list(N = nrow(train_data), K = length(features1), L = 8,
-                  feats = train_data[features1], ll = train_data$lvl,
+                  feats = train_data[features1], split_idx = train_data$lvl,
                   finish = train_data$finish)
     res_name1 <- paste("stan_results/result_", race, "1.csv", sep="")
     par_name1 <- paste("stan_results/params_", race, "1.csv", sep="")
@@ -35,7 +37,7 @@ for (race in c("all")) {
     print(loo1)
 
     data2 <- list(N = nrow(train_data), K = length(features2), L = 8,
-                  feats = train_data[features2], ll = train_data$lvl,
+                  feats = train_data[features2], split_idx = train_data$lvl,
                   finish = train_data$finish)
     res_name2 <- paste("stan_results/result_", race, "2.csv", sep="")
     par_name2 <- paste("stan_results/params_", race, "2.csv", sep="")
@@ -48,9 +50,9 @@ for (race in c("all")) {
     llk2 <- extract_log_lik(fit2, parameter_name = "log_lik", merge_chains = TRUE)
     loo2 <- loo(llk2)
     print(loo2)
-
+    
     data3 <- list(N = nrow(train_data), K = length(features3), L = 8,
-                  feats = train_data[features3], ll = train_data$lvl,
+                  feats = train_data[features3], split_idx = train_data$lvl,
                   curr = train_data$curr_pace,
                   finish = train_data$finish)
     res_name3 <- paste("stan_results/result_", race, "3.csv", sep="")
@@ -66,7 +68,7 @@ for (race in c("all")) {
     print(loo3)
 
     data4 <- list(N = nrow(train_data), K = length(features4), L = 8,
-                  feats = train_data[features4], ll = train_data$lvl,
+                  feats = train_data[features4], split_idx = train_data$lvl,
                   curr = train_data$curr_pace,
                   finish = train_data$finish)
     res_name4 <- paste("stan_results/result_", race, "4.csv", sep="")

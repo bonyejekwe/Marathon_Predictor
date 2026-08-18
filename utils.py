@@ -113,8 +113,8 @@ def process_df(data):
     new_df["log_total_time"] = np.log(new_df["total_time"])
     # new_df["log_curr_time"] = np.log(new_df["curr_time"])
     new_df["log_finish"] = np.log(new_df["fin_time"])
-    # new_df["curr_ratio"] = np.log(new_df["log_curr"] / new_df["log_total"])
-    new_df["curr_ratio"] = np.log(new_df["curr_pace"] / new_df["total_pace"])
+    new_df["curr_ratio"] = new_df["curr_pace"] / new_df["total_pace"]
+    new_df["log_curr_ratio"] = np.log(new_df["curr_ratio"])
     return new_df
 
 def get_data(size_train=50, size_test=50, train_lis=[2022], test_lis=[2023], save=False, seed=2025):
@@ -394,7 +394,7 @@ def get_test_preds(test_data, race: str, baseline = "BL", full=False):
         return test2
 
 if __name__ == '__main__':
-    size = 500 # size1, size2 = 10000, 10000
+    size = 250 #1250 # size1, size2 = 10000, 10000
     train_yr, test_yr = [2021, 2022, 2023], [2024]
     train, test = get_data(size_train=size, size_test=size, train_lis=train_yr, test_lis=test_yr, save=True)
     print('done')

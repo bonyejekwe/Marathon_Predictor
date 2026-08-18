@@ -8,22 +8,19 @@
 set.seed(2025)
 library("rstan") # observe startup messages
 library("loo")
-
-# features1 <- c("alpha", "log_total_time", "race_nyc", "race_chi")
-# features2 <- c("alpha", "log_total_time", "male", "age_t", "race_nyc", "race_chi")
-features1 <- c("alpha", "total_pace", "race_nyc", "race_chi")
-features2 <- c("alpha", "total_pace", "male", "age_t", "race_nyc", "race_chi")
-features3 <- c("alpha", "total_pace", "race_nyc", "race_chi") # w/ curr_pace
-features4 <- c("alpha", "total_pace", "male", "age_t", "race_nyc", "race_chi") # w/ curr_pace
+features1 <- c("total_pace")
+features2 <- c("total_pace", "curr_ratio")
+features3 <- c("total_pace") # w/ curr_pace
+features4 <- c("total_pace", "male", "age_t") # w/ curr_pace
 
 for (race in c("all")) {
     print(race)
     train_name <- paste("processed_data/train_", race, ".csv", sep="")
     train_data <- read.csv(train_name)
     
-    data1 <- list(N = nrow(train_data), K = length(features1), L = 8,
+    data1 <- list(N = nrow(train_data), K = length(features1), L = 8, R=3,
                   feats = train_data[features1], split_idx = train_data$lvl,
-                  finish = train_data$finish)
+                  marathon_idx = train_data$race_val, finish = train_data$finish)
     res_name1 <- paste("stan_results/result_", race, "1.csv", sep="")
     par_name1 <- paste("stan_results/params_", race, "1.csv", sep="")
     fit1 <- stan(file = 'marathon.stan', data = data1,
@@ -36,9 +33,9 @@ for (race in c("all")) {
     loo1 <- loo(llk1)
     print(loo1)
 
-    data2 <- list(N = nrow(train_data), K = length(features2), L = 8,
+    data2 <- list(N = nrow(train_data), K = length(features2), L = 8, R=3,
                   feats = train_data[features2], split_idx = train_data$lvl,
-                  finish = train_data$finish)
+                  marathon_idx = train_data$race_val, finish = train_data$finish)
     res_name2 <- paste("stan_results/result_", race, "2.csv", sep="")
     par_name2 <- paste("stan_results/params_", race, "2.csv", sep="")
     fit2 <- stan(file = 'marathon.stan', data = data2,
@@ -50,8 +47,8 @@ for (race in c("all")) {
     llk2 <- extract_log_lik(fit2, parameter_name = "log_lik", merge_chains = TRUE)
     loo2 <- loo(llk2)
     print(loo2)
-    
-    data3 <- list(N = nrow(train_data), K = length(features3), L = 8,
+    wsws
+    data3 <- list(N = nrow(train_data), K = length(features3), L = 8, R=3, marathon_idx = train_data$race_val,
                   feats = train_data[features3], split_idx = train_data$lvl,
                   curr = train_data$curr_pace,
                   finish = train_data$finish)
@@ -67,7 +64,7 @@ for (race in c("all")) {
     loo3 <- loo(llk3)
     print(loo3)
 
-    data4 <- list(N = nrow(train_data), K = length(features4), L = 8,
+    data4 <- list(N = nrow(train_data), K = length(features4), L = 8, R=3, marathon_idx = train_data$race_val,
                   feats = train_data[features4], split_idx = train_data$lvl,
                   curr = train_data$curr_pace,
                   finish = train_data$finish)

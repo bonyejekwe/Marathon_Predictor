@@ -23,7 +23,7 @@ for (race in c("all")) {
                   marathon_idx = train_data$race_val, finish = train_data$finish)
     res_name1 <- paste("stan_results/result_", race, "1.csv", sep="")
     par_name1 <- paste("stan_results/params_", race, "1.csv", sep="")
-    fit1 <- stan(file = 'marathon.stan', data = data1,
+    fit1 <- stan(file = 'marathon1.stan', data = data1,
                  iter=800, chains=4, cores=4, seed=2025,
                  control = list(max_treedepth = 12))
     parameters1 <- as.data.frame(extract(fit1)[c("beta", "sigma", "lp__")])
@@ -38,7 +38,7 @@ for (race in c("all")) {
                   marathon_idx = train_data$race_val, finish = train_data$finish)
     res_name2 <- paste("stan_results/result_", race, "2.csv", sep="")
     par_name2 <- paste("stan_results/params_", race, "2.csv", sep="")
-    fit2 <- stan(file = 'marathon.stan', data = data2,
+    fit2 <- stan(file = 'marathon1.stan', data = data2,
                  iter=800, chains=4, cores=4, seed=2025,
                  control = list(max_treedepth = 12))
     parameters2 <- as.data.frame(extract(fit2)[c("beta", "sigma", "lp__")])

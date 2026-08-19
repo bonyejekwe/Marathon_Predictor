@@ -1,4 +1,4 @@
-year,marathon,racedayhigh,racedaylow,starttemp,starthumidity
+year,Race,racedayhigh,racedaylow,starttemp,starthumidity
 2026,bos,55,38,43,56
 2025,bos,55,43,48,35
 2024,bos,67,46,56,72

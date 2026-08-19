@@ -158,6 +158,10 @@ def get_data(size_train=50, size_test=50, train_lis=[2022], test_lis=[2023], sav
 
     xtrain = xtrain.sort_values(["lvl", "race_val"])
     xtest = xtest.sort_values(["lvl", "race_val"])
+
+    weather = pd.read_csv("weather.txt")
+    xtrain = xtrain.merge(weather, on=["Race","year"])
+    xtest = xtest.merge(weather, on=["Race","year"])
     
     if save:
         train_path, test_path = "processed_data/train_all.csv", "processed_data/test_all.csv"
@@ -394,7 +398,7 @@ def get_test_preds(test_data, race: str, baseline = "BL", full=False):
         return test2
 
 if __name__ == '__main__':
-    size = 250 #1250 # size1, size2 = 10000, 10000
+    size = 100 #1250 # size1, size2 = 10000, 10000
     train_yr, test_yr = [2021, 2022, 2023], [2024]
     train, test = get_data(size_train=size, size_test=size, train_lis=train_yr, test_lis=test_yr, save=True)
     print('done')
